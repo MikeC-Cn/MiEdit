@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>MiEdit</title>
+    <style type="text/css" media="screen">
+    body {
+        overflow: hidden;
+        border-radius: 4px;
+    }
+
+    #editor {
+        margin: 0;
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+    </style>
+    <link rel="stylesheet" href="node_modules/electron-tabs/electron-tabs.css">
+</head>
+
+<body>
+    <div class="etabs-tabgroup">
+        <div class="etabs-tabs"></div>
+        <div class="etabs-buttons"></div>
+    </div>
+    <div class="etabs-views">
+        <pre id="editor"></pre>
+    </div>
+    <script src="ace/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script>
+    const electron = require('electron');
+    const {
+        ipcRenderer,
+        remote
+    } = electron;
+
+    var editor = ace.edit("editor"),
+        path;
+
+    //启用提示菜单
+    ace.require("ace/ext/language_tools");
+    //以下部分是设置输入代码提示的
+    editor.setOptions({
+        enableBasicAutocompletion: true,
+        enableSnippets: true,
+        enableLiveAutocompletion: true
+    });
+    editor.setHighlightActiveLine(true); //代码高亮  
+    editor.getSession().setUseWrapMode(true); //支持代码折叠
+
+    ipcRenderer.send('data');
+    ipcRenderer.on('data-back', function(event, theme, mode) {
+        editor.setTheme("ace/theme/" + theme);
+        editor.getSession().setMode("ace/mode/" + mode);
+        editor.setFontSize(18);
+    })
+    ipcRenderer.on('change-theme', function(event, data) {
+        editor.setTheme("ace/theme/" + data);
+    })
+    ipcRenderer.on('change-mode', function(event, data) {
+        editor.getSession().setMode("ace/mode/" + data);
+    })
+    ipcRenderer.on('open-file', function(event, message, p) {
+        editor.setValue(message);
+        path = p;
+    })
+    ipcRenderer.on('save-data', function(event) {
+        ipcRenderer.send('save-data-back', editor.getValue(), path);
+    })
+
+    //拖放
+    var content = document.querySelector("#editor");
+    content.ondragenter = content.ondragover = content.ondragleave = function() {
+        return false; /*阻止默认行为*/
+    }
+    content.ondrop = function(event) {
+        //阻止默认行为
+        event.preventDefault();
+        path = event.dataTransfer.files[0].path;
+        ipcRenderer.send("drag-file", path);
+    }
+    </script>
+</body>
+
+</html>
